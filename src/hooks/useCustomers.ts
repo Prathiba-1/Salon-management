@@ -2,6 +2,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase, USE_MOCKS } from '../lib/supabaseClient'
 import { useAuth } from './useAuth'
 
+// The generated Database type (src/types/database.ts) is a placeholder until
+// `npm run gen-types` is run against a live Supabase project with real migrations.
+// Until then every supabase.from() call infers its row/update types as `never`,
+// causing TS2345/TS2339 errors throughout this file. This cast isolates the
+// workaround in one place — once real types are generated, remove this line
+// and replace `db` with `supabase` everywhere below.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any
+
 export interface Customer {
   id: string
   name: string
@@ -53,7 +62,7 @@ export function useCustomerList(q: string) {
       // Owner/Admin only; a plain `.ilike` search is sufficient here (no
       // custom RPC needed per M8.1's "simple resources" note), backed by
       // the GIN trigram-style index from 0001_core_schema.sql.
-      let query = supabase
+      let query = db
         .from('Customer')
         .select('id, name, phone, email, isVIP')
         .eq('salonId', user?.salonId ?? '')
@@ -77,7 +86,7 @@ export function useCustomer(id: string) {
         if (!res.ok) throw new Error('Not found')
         return res.json()
       }
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('Customer')
         .select('id, name, phone, email, isVIP')
         .eq('id', id)
@@ -104,7 +113,7 @@ export function useCustomerHistory(customerId: string) {
       // Stylist + Invoice, mirroring the mock's CustomerHistory shape
       // exactly (one row per appointment, using its first segment's
       // serviceStep/duration as the summary).
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('Appointment')
         .select(`
           id, date, status,
@@ -151,7 +160,7 @@ export function useFormulaNotes(customerId: string) {
         if (!res.ok) throw new Error('Failed')
         return res.json()
       }
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('ClientFormulaNotes')
         .select('id, customerId, serviceType, brand, shade, developer, ratio, timing, notes, stylistId, createdAt')
         .eq('customerId', customerId)
@@ -173,13 +182,13 @@ export function useCustomerNote(customerId: string) {
         if (!res.ok) throw new Error('Failed')
         return res.json()
       }
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('CustomerNote')
         .select('body')
         .eq('customerId', customerId)
         .maybeSingle()
       if (error) throw new Error(error.message)
-      return (data as CustomerNote) ?? { body: '' }
+      return (data as unknown as CustomerNote | null) ?? { body: '' }
     },
     enabled: Boolean(customerId),
   })
@@ -198,14 +207,14 @@ export function useToggleVIP() {
       // Read-then-write: flips isVIP. RLS (0004, customer_write_owner)
       // restricts this to Owner/Admin already, matching the UI's existing
       // owner-only toggle visibility.
-      const { data: current, error: readErr } = await supabase
+      const { data: current, error: readErr } = await db
         .from('Customer')
         .select('id, name, phone, email, isVIP')
         .eq('id', customerId)
         .single()
       if (readErr) throw new Error(readErr.message)
 
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('Customer')
         .update({ isVIP: !current.isVIP })
         .eq('id', customerId)
@@ -234,7 +243,7 @@ export function useSaveCustomerNote() {
         if (!res.ok) throw new Error('Failed')
         return res.json()
       }
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('CustomerNote')
         .upsert({ customerId, body, updatedAt: new Date().toISOString() }, { onConflict: 'customerId' })
         .select('body')
@@ -261,7 +270,7 @@ export function useAddFormulaNote() {
         if (!res.ok) throw new Error('Failed')
         return res.json()
       }
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('ClientFormulaNotes')
         .insert(note)
         .select('id, customerId, serviceType, brand, shade, developer, ratio, timing, notes, stylistId, createdAt')
@@ -292,7 +301,7 @@ export function useAddCustomer() {
         }
         return res.json()
       }
-      const { data: inserted, error } = await supabase
+      const { data: inserted, error } = await db
         .from('Customer')
         .insert({ ...data, salonId: user?.salonId })
         .select('id, name, phone, email, isVIP')

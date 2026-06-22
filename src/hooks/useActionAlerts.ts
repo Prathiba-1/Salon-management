@@ -26,7 +26,8 @@ async function fetchAlertsMock(): Promise<ActionAlert[]> {
 // only genuinely custom logic needs a hand-written function). RLS already
 // restricts this to Owner/Admin per 0004_rls_policies.sql.
 async function fetchAlertsLive(): Promise<ActionAlert[]> {
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase as any)
     .from('ActionAlert')
     .select('id, type, title, subtitle, resolved, createdAt, metadata')
     .eq('resolved', false)
@@ -42,7 +43,8 @@ async function resolveAlertMock(id: string): Promise<void> {
 }
 
 async function resolveAlertLive(id: string): Promise<void> {
-  const { error } = await supabase.from('ActionAlert').update({ resolved: true }).eq('id', id)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any).from('ActionAlert').update({ resolved: true }).eq('id', id)
   if (error) throw new Error(error.message)
 }
 

@@ -99,7 +99,8 @@ export function useDeleteInvoice() {
       // No dedicated RPC was specified for delete in M8.3 (the plan only
       // covers create/status-update) — direct table delete is fine here
       // since RLS (0004) already restricts Invoice writes to Owner/Admin.
-      const { error } = await supabase.from('Invoice').delete().eq('id', id)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any).from('Invoice').delete().eq('id', id)
       if (error) throw new Error(error.message)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['invoices'] }),

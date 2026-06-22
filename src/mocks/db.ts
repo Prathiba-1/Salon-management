@@ -437,7 +437,13 @@ const CUSTOMER_NOTES: CustomerNote[] = [
   { id: 'cn_02', customerId: 'cus_03', body: 'Comes in monthly for highlights. Always brings reference photos.', updatedAt: ts(TODAY,'09:00') },
 ]
 
-db.getCustomers = (q: string) =>
+// M5 extensions — added after the initial db object literal, so TypeScript
+// doesn't know these properties exist on the inferred type. Cast to allow
+// the dynamic assignments; the actual runtime types are correct.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const dbExt = db as any
+
+dbExt.getCustomers = (q: string) =>
   CUSTOMERS.filter(
     (c) =>
       !q ||
@@ -446,9 +452,9 @@ db.getCustomers = (q: string) =>
       c.phone.includes(q),
   )
 
-db.getCustomerById = (id: string) => CUSTOMERS.find((c) => c.id === id) ?? null
+dbExt.getCustomerById = (id: string) => CUSTOMERS.find((c) => c.id === id) ?? null
 
-db.getCustomerHistory = (customerId: string): CustomerHistory[] =>
+dbExt.getCustomerHistory = (customerId: string): CustomerHistory[] =>
   appointments
     .filter((a) => a.customerId === customerId)
     .flatMap((a) => {
@@ -470,13 +476,13 @@ db.getCustomerHistory = (customerId: string): CustomerHistory[] =>
     })
     .sort((a, b) => b.date.localeCompare(a.date))
 
-db.getFormulaNotesForCustomer = (customerId: string): FormulaNote[] =>
+dbExt.getFormulaNotesForCustomer = (customerId: string): FormulaNote[] =>
   FORMULA_NOTES.filter((f) => f.customerId === customerId)
 
-db.getCustomerNote = (customerId: string): CustomerNote | null =>
+dbExt.getCustomerNote = (customerId: string): CustomerNote | null =>
   CUSTOMER_NOTES.find((n) => n.customerId === customerId) ?? null
 
-db.upsertCustomerNote = (customerId: string, body: string): CustomerNote => {
+dbExt.upsertCustomerNote = (customerId: string, body: string): CustomerNote => {
   const existing = CUSTOMER_NOTES.findIndex((n) => n.customerId === customerId)
   const note: CustomerNote = { id: `cn_${customerId}`, customerId, body, updatedAt: new Date().toISOString().slice(0,16) }
   if (existing >= 0) CUSTOMER_NOTES[existing] = note
@@ -484,29 +490,29 @@ db.upsertCustomerNote = (customerId: string, body: string): CustomerNote => {
   return note
 }
 
-db.addFormulaNote = (note: Omit<FormulaNote, 'id' | 'createdAt'>): FormulaNote => {
+dbExt.addFormulaNote = (note: Omit<FormulaNote, 'id' | 'createdAt'>): FormulaNote => {
   const n: FormulaNote = { ...note, id: `fn_${crypto.randomUUID().slice(0,8)}`, createdAt: new Date().toISOString().slice(0,16) }
   FORMULA_NOTES.push(n)
   return n
 }
 
-db.toggleVIP = (customerId: string): Customer | null => {
+dbExt.toggleVIP = (customerId: string): Customer | null => {
   const c = CUSTOMERS.find((x) => x.id === customerId)
   if (!c) return null
   c.isVIP = !c.isVIP
   return c
 }
 
-db.addCustomer = (data: Omit<Customer, 'id' | 'formulaNotes'>): Customer => {
+dbExt.addCustomer = (data: Omit<Customer, 'id' | 'formulaNotes'>): Customer => {
   const c: Customer = { ...data, id: `cus_${crypto.randomUUID().slice(0,8)}`, formulaNotes: [] }
   CUSTOMERS.push(c)
   return c
 }
 
 // Invoices (simple CRUD in-memory)
-db.getInvoices = () => INVOICES
+dbExt.getInvoices = () => INVOICES
 
-db.createInvoice = (payload: Partial<Invoice>): Invoice => {
+dbExt.createInvoice = (payload: Partial<Invoice>): Invoice => {
   const inv: Invoice = {
     id: `invn_${crypto.randomUUID().slice(0,8)}`,
     appointmentId: payload.appointmentId,
@@ -520,10 +526,10 @@ db.createInvoice = (payload: Partial<Invoice>): Invoice => {
   return inv
 }
 
-db.payInvoice = (id: string) => {
+dbExt.payInvoice = (id: string) => {
   INVOICES = INVOICES.map((i) => (i.id === id ? { ...i, status: 'PAID' } : i))
 }
 
-db.deleteInvoice = (id: string) => {
+dbExt.deleteInvoice = (id: string) => {
   INVOICES = INVOICES.filter((i) => i.id !== id)
 }
